@@ -1,6 +1,8 @@
 package com.ruoyi.framework.web.service;
 
 import javax.annotation.Resource;
+
+import com.light.core.authenticator.GoogleAuthenticator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -31,7 +33,7 @@ import com.ruoyi.system.service.ISysUserService;
 
 /**
  * 登录校验方法
- * 
+ *
  * @author ruoyi
  */
 @Component
@@ -45,7 +47,7 @@ public class SysLoginService
 
     @Autowired
     private RedisCache redisCache;
-    
+
     @Autowired
     private ISysUserService userService;
 
@@ -54,7 +56,7 @@ public class SysLoginService
 
     /**
      * 登录验证
-     * 
+     *
      * @param username 用户名
      * @param password 密码
      * @param code 验证码
@@ -100,9 +102,60 @@ public class SysLoginService
         return tokenService.createToken(loginUser);
     }
 
+
+
+    /**
+     * 登录验证
+     *
+     * @param username 用户名
+     * @param password 密码
+     * @param code 验证码
+     * @return 结果
+     */
+    public String login(String username, String password, String code)
+    {
+        // 验证码校验
+        validateCaptcha(username, code);
+        // 登录前置校验
+        loginPreCheck(username, password);
+        // 用户验证
+        Authentication authentication = null;
+        try
+        {
+            UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(username, password);
+            AuthenticationContextHolder.setContext(authenticationToken);
+            // 该方法会去调用UserDetailsServiceImpl.loadUserByUsername
+            authentication = authenticationManager.authenticate(authenticationToken);
+        }
+        catch (Exception e)
+        {
+            if (e instanceof BadCredentialsException)
+            {
+                AsyncManager.me().execute(AsyncFactory.recordLogininfor(username, Constants.LOGIN_FAIL, MessageUtils.message("user.password.not.match")));
+                throw new UserPasswordNotMatchException();
+            }
+            else
+            {
+                AsyncManager.me().execute(AsyncFactory.recordLogininfor(username, Constants.LOGIN_FAIL, e.getMessage()));
+                throw new ServiceException(e.getMessage());
+            }
+        }
+        finally
+        {
+            AuthenticationContextHolder.clearContext();
+        }
+        AsyncManager.me().execute(AsyncFactory.recordLogininfor(username, Constants.LOGIN_SUCCESS, MessageUtils.message("user.login.success")));
+        LoginUser loginUser = (LoginUser) authentication.getPrincipal();
+        recordLoginInfo(loginUser.getUserId());
+        // 生成token
+        return tokenService.createToken(loginUser);
+    }
+
+
+
     /**
      * 校验验证码
-     * 
+     *
      * @param username 用户名
      * @param code 验证码
      * @param uuid 唯一标识
@@ -122,6 +175,31 @@ public class SysLoginService
             }
             redisCache.deleteObject(verifyKey);
             if (!code.equalsIgnoreCase(captcha))
+            {
+                AsyncManager.me().execute(AsyncFactory.recordLogininfor(username, Constants.LOGIN_FAIL, MessageUtils.message("user.jcaptcha.error")));
+                throw new CaptchaException();
+            }
+        }
+    }
+
+    /**
+     * 校验验证码
+     *
+     * @param username 用户名
+     * @param code 验证码
+     * @return 结果
+     */
+    public void validateCaptcha(String username, String code)
+    {
+        boolean captchaEnabled = configService.selectCaptchaEnabled();
+        if (captchaEnabled)
+        {
+            SysUser sysUser = userService.selectUserByUserName(username);
+            if (sysUser == null){
+                AsyncManager.me().execute(AsyncFactory.recordLogininfor(username, Constants.LOGIN_FAIL, MessageUtils.message("user.password.not.match")));
+                throw new UserPasswordNotMatchException();
+            }
+            if (!GoogleAuthenticator.verify(sysUser.getLoginVerifyCode(), code))
             {
                 AsyncManager.me().execute(AsyncFactory.recordLogininfor(username, Constants.LOGIN_FAIL, MessageUtils.message("user.jcaptcha.error")));
                 throw new CaptchaException();
