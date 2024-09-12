@@ -263,16 +263,16 @@ public class SysLoginService
         Platform platform = platformService.selectPlatformById(sysUser.getPlatformId());
         if (platform == null){
             AsyncManager.me().execute(AsyncFactory.recordLogininfor(username, Constants.LOGIN_FAIL, MessageUtils.message("platform.not.exists")));
-            throw new ServiceException("平台不存在");
+            throw new ServiceException(MessageUtils.message("platform.not.exists"));
         }
         if (platform.getStatus() != CommonConstant.COMMON_STATUS_AVAILABLE){
             AsyncManager.me().execute(AsyncFactory.recordLogininfor(username, Constants.LOGIN_FAIL, MessageUtils.message("platform.not.available")));
-            throw new ServiceException("平台不可用");
+            throw new ServiceException(MessageUtils.message("platform.not.available"));
         }
         List<String> ipWhitelistList = ipWhitelistService.getIpWhitelistList(platform.getId(), CommonConstant.IpWhitelistType.ADMIN);
         if (CollectionUtils.isEmpty(ipWhitelistList) || !ipWhitelistList.contains(IpUtils.getIpAddr())){
             AsyncManager.me().execute(AsyncFactory.recordLogininfor(username, Constants.LOGIN_FAIL, MessageUtils.message("illegal.ip.access")));
-            throw new ServiceException("非法IP访问");
+            throw new ServiceException(MessageUtils.message("illegal.ip.access"));
         }
         if (IpUtils.isMatchedIp(blackStr, IpUtils.getIpAddr()))
         {
