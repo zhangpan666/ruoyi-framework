@@ -3,6 +3,11 @@ package com.ruoyi.framework.web.service;
 import javax.annotation.Resource;
 
 import com.light.core.authenticator.GoogleAuthenticator;
+import com.ruoyi.system.constants.CommonConstant;
+import com.ruoyi.system.domain.Platform;
+import com.ruoyi.system.service.IIpWhitelistService;
+import com.ruoyi.system.service.IPlatformService;
+import org.apache.commons.collections4.CollectionUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -31,6 +36,8 @@ import com.ruoyi.framework.security.context.AuthenticationContextHolder;
 import com.ruoyi.system.service.ISysConfigService;
 import com.ruoyi.system.service.ISysUserService;
 
+import java.util.List;
+
 /**
  * 登录校验方法
  *
@@ -53,6 +60,12 @@ public class SysLoginService
 
     @Autowired
     private ISysConfigService configService;
+
+    @Autowired
+    private IIpWhitelistService ipWhitelistService;
+
+    @Autowired
+    private IPlatformService platformService;
 
     /**
      * 登录验证
@@ -236,6 +249,31 @@ public class SysLoginService
         }
         // IP黑名单校验
         String blackStr = configService.selectConfigByKey("sys.login.blackIPList");
+        if (IpUtils.isMatchedIp(blackStr, IpUtils.getIpAddr()))
+        {
+            AsyncManager.me().execute(AsyncFactory.recordLogininfor(username, Constants.LOGIN_FAIL, MessageUtils.message("login.blocked")));
+            throw new BlackListException();
+        }
+        // IP白名单校验
+        SysUser sysUser = userService.selectUserByUserName(username);
+        if (sysUser == null){
+            AsyncManager.me().execute(AsyncFactory.recordLogininfor(username, Constants.LOGIN_FAIL, MessageUtils.message("not.null")));
+            throw new UserNotExistsException();
+        }
+        Platform platform = platformService.selectPlatformById(sysUser.getPlatformId());
+        if (platform == null){
+            AsyncManager.me().execute(AsyncFactory.recordLogininfor(username, Constants.LOGIN_FAIL, MessageUtils.message("platform.not.exists")));
+            throw new ServiceException("平台不存在");
+        }
+        if (platform.getStatus() != CommonConstant.COMMON_STATUS_AVAILABLE){
+            AsyncManager.me().execute(AsyncFactory.recordLogininfor(username, Constants.LOGIN_FAIL, MessageUtils.message("platform.not.available")));
+            throw new ServiceException("平台不可用");
+        }
+        List<String> ipWhitelistList = ipWhitelistService.getIpWhitelistList(platform.getId(), CommonConstant.IpWhitelistType.ADMIN);
+        if (CollectionUtils.isEmpty(ipWhitelistList) || !ipWhitelistList.contains(IpUtils.getIpAddr())){
+            AsyncManager.me().execute(AsyncFactory.recordLogininfor(username, Constants.LOGIN_FAIL, MessageUtils.message("platform.not.available")));
+            throw new ServiceException("非法IP访问");
+        }
         if (IpUtils.isMatchedIp(blackStr, IpUtils.getIpAddr()))
         {
             AsyncManager.me().execute(AsyncFactory.recordLogininfor(username, Constants.LOGIN_FAIL, MessageUtils.message("login.blocked")));
