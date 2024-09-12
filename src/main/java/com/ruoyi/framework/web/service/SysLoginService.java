@@ -271,7 +271,7 @@ public class SysLoginService
         }
         List<String> ipWhitelistList = ipWhitelistService.getIpWhitelistList(platform.getId(), CommonConstant.IpWhitelistType.ADMIN);
         if (CollectionUtils.isEmpty(ipWhitelistList) || !ipWhitelistList.contains(IpUtils.getIpAddr())){
-            AsyncManager.me().execute(AsyncFactory.recordLogininfor(username, Constants.LOGIN_FAIL, MessageUtils.message("platform.not.available")));
+            AsyncManager.me().execute(AsyncFactory.recordLogininfor(username, Constants.LOGIN_FAIL, MessageUtils.message("illegal.ip.access")));
             throw new ServiceException("非法IP访问");
         }
         if (IpUtils.isMatchedIp(blackStr, IpUtils.getIpAddr()))
