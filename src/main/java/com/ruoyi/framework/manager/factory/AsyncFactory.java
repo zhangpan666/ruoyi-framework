@@ -1,13 +1,7 @@
 package com.ruoyi.framework.manager.factory;
 
-import java.util.TimerTask;
-
-import com.ruoyi.common.core.domain.entity.SysUser;
-import com.ruoyi.common.core.domain.model.LoginUser;
-import com.ruoyi.common.utils.SecurityUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import com.ruoyi.common.constant.Constants;
+import com.ruoyi.common.core.domain.entity.SysUser;
 import com.ruoyi.common.utils.LogUtils;
 import com.ruoyi.common.utils.ServletUtils;
 import com.ruoyi.common.utils.StringUtils;
@@ -18,7 +12,12 @@ import com.ruoyi.system.domain.SysLogininfor;
 import com.ruoyi.system.domain.SysOperLog;
 import com.ruoyi.system.service.ISysLogininforService;
 import com.ruoyi.system.service.ISysOperLogService;
+import com.ruoyi.system.service.ISysUserService;
 import eu.bitwalker.useragentutils.UserAgent;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.TimerTask;
 
 /**
  * 异步工厂（产生任务用）
@@ -78,13 +77,11 @@ public class AsyncFactory
                 {
                     logininfor.setStatus(Constants.FAIL);
                 }
-                LoginUser loginUser = SecurityUtils.getLoginUser();
-                if (loginUser != null){
-                    SysUser sysUser = loginUser.getUser();
-                    if (sysUser != null) {
-                        logininfor.setPlatformId(sysUser.getPlatformId());
-                        logininfor.setPlatformName(sysUser.getPlatformName());
-                    }
+                ISysUserService sysUserService = SpringUtils.getBean(ISysUserService.class);
+                SysUser sysUser = sysUserService.selectUserByUserName(username);
+                if (sysUser != null) {
+                    logininfor.setPlatformId(sysUser.getPlatformId());
+                    logininfor.setPlatformName(sysUser.getPlatformName());
                 }
                 // 插入数据
                 SpringUtils.getBean(ISysLogininforService.class).insertLogininfor(logininfor);
