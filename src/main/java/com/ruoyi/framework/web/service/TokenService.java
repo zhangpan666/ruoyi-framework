@@ -230,11 +230,22 @@ public class TokenService
         if (StringUtils.isEmpty(token)){
             token = request.getParameter(header);
         }
-        if (StringUtils.isNotEmpty(token) && token.startsWith(Constants.TOKEN_PREFIX))
+      return getToken(token);
+    }
+
+    /**
+     * 获取请求token
+     *
+     * @param authorization
+     * @return token
+     */
+    private String getToken(String authorization)
+    {
+        if (StringUtils.isNotEmpty(authorization) && authorization.startsWith(Constants.TOKEN_PREFIX))
         {
-            token = token.replace(Constants.TOKEN_PREFIX, "");
+            authorization = authorization.replace(Constants.TOKEN_PREFIX, "");
         }
-        return token;
+        return authorization;
     }
 
     private String getTokenKey(String uuid)
