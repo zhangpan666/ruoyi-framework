@@ -239,7 +239,7 @@ public class TokenService
      * @param authorization
      * @return token
      */
-    private String getToken(String authorization)
+    public String getToken(String authorization)
     {
         if (StringUtils.isNotEmpty(authorization) && authorization.startsWith(Constants.TOKEN_PREFIX))
         {
